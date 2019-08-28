@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="1bd5a2e3-2207-491b-a282-a60c1434c6d6">
+		<http:listener-connection host="0.0.0.0" port="80" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="81d5c5c6-8669-4436-b63b-deb4a82c707a" >
+		<db:my-sql-connection host="mudb.learn.mulesoft.com" port="3306" user="mule" password="mule" database="training" />
+	</db:config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="53f1c5a0-7345-4541-8092-ad83b953be4e" >
+		<http:request-connection host="mu.learn.mulesoft.com" port="80" />
+	</http:request-config>
+	<flow name="FindFlightsMySQLQueryParamFlow" doc:id="2fe956c5-af52-4036-8582-59a4f3f6bb33" >
+		<http:listener config-ref="HTTP_Listener_config" path="/mua" doc:name="Listener" doc:id="3f778931-2fd5-4b5d-929c-e570c8e42473" />
+		<logger level="INFO" doc:name="Logger" doc:id="b0a4b128-af73-4c4c-8a84-a9ce09e9f16b" message="#[attributes]" />
+		<set-variable variableName="airlinenameWhere"
+    value='#[if ( isEmpty(attributes.queryParams.airlinename) == true) 
+                 "" else "AND airlineName = :airlinename"]'/>
+        		<set-variable variableName="destinationWhere"
+    value='#[if ( isEmpty(attributes.queryParams.destination) == true) 
+                 "" else "AND toAirport = :destination" ]'/>
+<set-variable variableName="selectSql" 
+    value="#['select * from flights where 1=1 $(vars.airlinenameWhere) $(vars.destinationWhere)']" />
+<logger level="INFO" message="queryParams: #[attributes.queryParams]" doc:id="cf38f74f-8fa9-4cc1-924c-78559d8a1cba" />
+<logger level="INFO" message="vars.airlinenameWhere #[vars.airlinenameWhere]" doc:id="38ef7ca5-6f82-4d68-b525-ec5281bf78ed" />
+<logger level="INFO" message="vars.destinationWhere #[vars.destinationWhere]" doc:id="21ae6414-010c-42df-b0a0-4c075e178452" />
+<logger level="INFO" message="selectSql #[vars.selectSql]" doc:id="b1ba83b2-5a9a-467b-89f9-3c5dbea4a6c8" />
+		<db:select config-ref="Database_Config" doc:name="Flights finder API from American MySQL database" doc:id="775ab79f-9ed1-4277-b4dd-fc44f719e5cd" >
+    <db:sql>#[ vars.selectSql ]</db:sql>
+			<db:input-parameters><![CDATA[#[{'airlinename' : attributes.queryParams.airlinename,'destination' : attributes.queryParams.destination}]]]>
+			</db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="be2454a8-adab-4e3e-bccd-02ba9327a2d4" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
